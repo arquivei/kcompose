@@ -120,6 +120,7 @@ login() {
     ;;
     "SASL/SCRAM256")
         ask credentialsFile "Credentials File" $HOME/.kcompose/credentials
+        mkdir -p `dirname $credentialsFile`
         ask username "Username" ""
         ask password "Password" ""
         cat > $credentialsFile <<EOF
