@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+set -f # Disables Globbing
 defaultConfigFile=$HOME/.kcompose/config
 
 # Config chain
@@ -63,7 +64,7 @@ programName=`basename $0`
 doc(){
     if [ -z $2 ] 
     then
-        echo "Usage: $programName $1"
+        echo -e "Usage: $programName $1"
         exit
     fi
 }
@@ -145,6 +146,7 @@ EOF
     saveConfigs
 
 }
+
 setup() {
     ask configFile "Configuration file" $configFile
     ask zookeeper "Zoookeeper host:port" $zookeeper
@@ -160,11 +162,12 @@ setup() {
         saveConfigs
     fi
 }
+
 # commands
-doc "[topic, acl, auth, produce, consume, group, env, config]" $1
+doc "[topic, acl, auth, produce, consume, group, env, config, login]" $1
 case $1 in 
 "topic")
-    doc "topic [list,describe,alter,remove,create]" $2
+    doc "topic [list, describe, alter, remove, create]" $2
     case $2 in 
     "list")
     ${kafkaBinaries}/kafka-topics.sh --zookeeper $zookeeperFull --list
@@ -199,46 +202,147 @@ case $1 in
     esac
 ;;
 "acl") 
+    aclHelp="""Usage:
+acl [
+        ([add, remove] RULE), 
+        list
+]
+
+RULE:
+    [ --user USER ]\t\tUser target for this rule
+    [ --host HOST ]\t\tHost target for this rule (Default: '*' when --user is set)
+    [ --allow / --deny]\t\tIf this describe an 'allow' or 'deny' rule (Default: Allow)
+    [ --literal / --prefixed ]\tIndicates how the resource is described (Default: literal)
+    [ --topic TOPIC ]\t\tTopic Resource
+    [ --group GROUP ]\t\tGroup Resource
+    [ --cluster ]\t\tGroup Resource
+    [ --operation OPERATION ]\tWhat kind of operation is allowed in this resource (Default: all)
+    [ --consumer ]\t\tConvenience method for consumer
+    [ --producer ]\t\tConvenience method for producer
+Examples:
+\$ $progName acl list # Lists all ACLs
+\$ $progName acl add --user user1 --topic mytopic --producer # Allows user1 to produce on mytopic
+\$ $progName acl add --host 192.168.0.100 --topic '*' --group '*' --consumer # Allows host 192.168.0.100 to read from all topics on all groups
+\$ $progName acl remove --user user2 --topic 'test' --producer # Removes rule 'user2 can produce on topic test'
+"""
+    error() {
+        echo $1
+        echo -e "$aclHelp"
+        exit 1
+    }
+    doc "$aclHelp" $2
     shift
-    base="${kafkaBinaries}/kafka-acls.sh --authorizer-properties zookeeper.connect=$zookeeperFull"
+    # base="${kafkaBinaries}/kafka-acls.sh --authorizer-properties zookeeper.connect=$zookeeperFull"
     case $1 in 
-    "user")
-        doc "acl user USER [allow,deny] [options]" $2
-        doc "acl user USER [allow,deny] [options]" $3
-        user=$2
-        principal=""
-        case $3 in
-        "allow")
-            principal="--allow-principal User:$user"
-        ;;
-        "deny")
-            principal="--deny-principal User:$user"
-        ;;
-        *)
-            invalid
-        ;;
-        esac
-        shift 3
-        escapeStar "$base $principal $*"
+    "add"|"remove")
+        acl_command="--$1"
+        acl_user=""
+        acl_host=""
+        acl_allow="--allow"
+        acl_literal="--literal"
+        acl_topic=""
+        acl_group=""
+        acl_cluster=""
+        acl_operation=""
+        acl_convenience=""
+        shift
+        while [ $# \> 0 ]; do
+            case $1 in
+            "--consumer"|"--producer")
+                acl_convenience=$1   
+            ;;
+            "--user")
+                shift
+                acl_user=$1
+            ;;
+            "--host")
+                shift
+                acl_host="$1"
+            ;;
+            "--allow"|"--deny")
+                shift
+                acl_allow=$1
+            ;;
+            "--literal"|"--prefixed")
+                acl_literal=$1
+            ;;
+            "--topic")
+                shift
+                acl_topic="$1"
+            ;;
+            "--group")
+                shift
+                acl_group="$1"
+            ;;
+            "--cluster")
+                acl_cluster="$1"
+            ;;
+            "--operation")
+                shift
+                acl_operation=$1
+            ;;
+            *)
+                echo "Unexpected token: $1"
+                exit 1
+            ;;
+            esac
+            shift
+        done
+        # Validation
+        if [ -z "$acl_user" ] && [ -z "$acl_host"]; then
+            error "At least one target must be specified (user/host)"
+        fi
+
+        if [ -z "$acl_topic" ] && [ -z "$acl_group" ] && [ -z "$acl_cluster" ]; then
+            error "At least one resource must be specified (topic/group/cluster)"
+        fi
+
+        if [ "$acl_convenience" = "--producer" ] && [ -z "$acl_topic" ]; then
+            error "'--producer' must specify a topic"
+        fi
+
+        if [ "$acl_convenience" = "--consumer" ] && `[ -z "$acl_topic" ] || [ -z "$acl_group" ]`; then
+            error "'--consumer' must specify a topic and group"
+        fi
+
+        # Build command
+        if [ "$acl_allow" = "--allow" ]; then
+            user_command="${acl_user:+--allow-principal User:$acl_user} ${acl_host:+--allow-host $acl_host}"
+        else
+            user_command="${acl_user:+--deny-principal User:$acl_user} ${acl_host:+--deny-host $acl_host}"
+        fi
+
+        if [ "$acl_literal" = "--literal" ]; then
+            resource_command="--resource-pattern-type literal"
+        else
+            resource_command="--resource-pattern-type prefixed"
+        fi
+
+        acl_command="$acl_command $user_command $resource_command \
+        ${acl_topic:+--topic $acl_topic} ${acl_group:+--group $acl_group} $acl_cluster \
+        ${acl_operation:+--operation $acl_operation} $acl_convenience"
+
+        # Execute command
+        ${kafkaBinaries}/kafka-acls.sh --authorizer-properties zookeeper.connect=$zookeeperFull $acl_command
     ;;
     "list")
-    shift
-    escapeStar "$base --list $*"
+        shift
+        ${kafkaBinaries}/kafka-acls.sh --authorizer-properties zookeeper.connect=$zookeeperFull --list
     ;;
     *)
-        escapeStar "$base $*"
+        invalid
     ;;
     esac
     
 ;;
 "auth")
-    doc "auth [remove,update]" $2
+    doc "auth [remove, create, update]" $2
     case $2 in
-    "update")
+    "update"|"create")
         user=$3
         password=$4
-        doc "auth update USER PASSWORD" $user
-        doc "auth update USER PASSWORD" $password
+        doc "auth $2 USER PASSWORD" $user
+        doc "auth $2 USER PASSWORD" $password
         ${kafkaBinaries}/kafka-configs.sh --zookeeper $zookeeperFull --alter --add-config "SCRAM-SHA-256=[iterations=8192,password=$password],SCRAM-SHA-512=[password=$password]" --entity-type users --entity-name $user
     ;;
     "remove")
