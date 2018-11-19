@@ -114,9 +114,15 @@ EOF
 }
 
 login() {
-    ask authType "Authentication type" SASL/SCRAM256
+    echo """
+Authentication type must be one of:
+- NONE
+- SASL/SCRAM256
+- SASL/PLAIN
+"""
+    ask authType "Authentication type" SASL/PLAIN
     case $authType in 
-    "PLAINTEXT")
+    "NONE")
         credentialsFile=""
     ;;
     "SASL/SCRAM256")
@@ -135,12 +141,29 @@ EOF
     echo "Credentials saved on $credentialsFile"
 
     ;;
+    "SASL/PLAIN")
+        ask credentialsFile "Credentials File" $HOME/.kcompose/credentials
+        mkdir -p `dirname $credentialsFile`
+        ask username "Username" ""
+        ask password "Password" ""
+        cat > $credentialsFile <<EOF
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+        username="$username" \
+        password="$password";
+security.protocol=SASL_PLAINTEXT
+sasl.mechanism=PLAIN
+EOF
+    echo
+    echo "Credentials saved on $credentialsFile"
+
+    ;;
     *)
     echo $authType
-        echo "Must be one of:"
-        echo " - PLAINTEXT"
-        echo " - SASL/SCRAM256"
-        exit 1
+    echo "Must be one of:"
+    echo " - NONE"
+    echo " - SASL/SCRAM256"
+    echo " - SASL/PLAIN"
+    exit 1
     ;;
     esac
     saveConfigs
