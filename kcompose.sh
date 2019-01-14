@@ -24,10 +24,8 @@ zookeeperPath="/kafka"
 broker="localhost:9092"
 credentialsFile=""
 kafkaLocation="/usr/share/kcompose/kafka"
-configFile=$KCOMPOSE_CONFIG_FILE
-if [ -z "$configFile"]; then
-    configFile=$defaultConfigFile
-fi
+configFile=${KCOMPOSE_CONFIG_FILE:-$defaultConfigFile}
+
 
 # Config file
 readConfig() {
