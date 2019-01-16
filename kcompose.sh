@@ -237,6 +237,7 @@ RULE:
     [ --topic TOPIC ]\t\tTopic Resource
     [ --group GROUP ]\t\tGroup Resource
     [ --cluster ]\t\tGroup Resource
+    [ --transaction ]\t\tTransactional Id Resource
     [ --operation OPERATION ]\tWhat kind of operation is allowed in this resource (Default: all)
     [ --consumer ]\t\tConvenience method for consumer
     [ --producer ]\t\tConvenience method for producer
@@ -265,6 +266,7 @@ Examples:
         acl_group=""
         acl_cluster=""
         acl_operation=""
+        acl_transaction=""
         acl_convenience=""
         shift
         while [ $# \> 0 ]; do
@@ -295,6 +297,10 @@ Examples:
                 shift
                 acl_group="$1"
             ;;
+            "--transaction")
+                shift
+                acl_transaction="$1"
+            ;;
             "--cluster")
                 acl_cluster="$1"
             ;;
@@ -314,8 +320,8 @@ Examples:
             error "At least one target must be specified (user/host)"
         fi
 
-        if [ -z "$acl_topic" ] && [ -z "$acl_group" ] && [ -z "$acl_cluster" ]; then
-            error "At least one resource must be specified (topic/group/cluster)"
+        if [ -z "$acl_topic" ] && [ -z "$acl_group" ] && [ -z "$acl_cluster" ] && [ -z "$acl_transaction" ]; then
+            error "At least one resource must be specified (topic/group/cluster/transaction)"
         fi
 
         if [ "$acl_convenience" = "--producer" ] && [ -z "$acl_topic" ]; then
@@ -340,7 +346,8 @@ Examples:
         fi
 
         acl_command="$acl_command $user_command $resource_command \
-        ${acl_topic:+--topic $acl_topic} ${acl_group:+--group $acl_group} $acl_cluster \
+        ${acl_topic:+--topic $acl_topic} ${acl_group:+--group $acl_group} \
+        ${acl_transaction:+--transactional-id $acl_transaction} $acl_cluster \
         ${acl_operation:+--operation $acl_operation} $acl_convenience"
 
         # Execute command
