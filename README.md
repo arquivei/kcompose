@@ -67,7 +67,7 @@ kcompose group reset GROUP --topic TOPIC --to-offset 15 --execute
 kcompose group reset GROUP --topic TOPIC --to-datetime "2018-07-01T15:29:54.134" --execute
 ```
 
-### Authentication
+### Authentication (SCRAM only)
 ```bash
 # To create/update user credentials
 kcompose auth update USER PASSWORD

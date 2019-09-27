@@ -191,31 +191,31 @@ case $1 in
     doc "topic [list, describe, alter, remove, create]" $2
     case $2 in 
     "list")
-    ${kafkaBinaries}/kafka-topics.sh --zookeeper $zookeeperFull --list
+    ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --list
     ;;
     "describe")
     doc "topic describe TOPIC" $3
     topic=$3
     shift 3
-    ${kafkaBinaries}/kafka-topics.sh --zookeeper $zookeeperFull --describe --topic $topic $*
+    ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --describe --topic $topic $*
     ;;
     "alter")
     doc "topic alter TOPIC" $3
     topic=$3
     shift 3
     options=$*
-    ${kafkaBinaries}/kafka-topics.sh --zookeeper $zookeeperFull --alter --topic $topic $options
+    ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --alter --topic $topic $options
     ;;
     "remove")
     doc "topic remove TOPIC" $3
-    ${kafkaBinaries}/kafka-topics.sh --zookeeper $zookeeperFull --delete --topic $3
+    ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --delete --topic $3
     ;;
     "create")
     doc "topic create TOPIC [options]" $3
     topic=$3
     shift 3
     options=$*
-    ${kafkaBinaries}/kafka-topics.sh --zookeeper $zookeeperFull --create --topic $topic $options
+    ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --create --topic $topic $options
     ;;
     *)
       invalid
