@@ -67,15 +67,6 @@ kcompose group reset GROUP --topic TOPIC --to-offset 15 --execute
 kcompose group reset GROUP --topic TOPIC --to-datetime "2018-07-01T15:29:54.134" --execute
 ```
 
-### Authentication (SCRAM only)
-```bash
-# To create/update user credentials
-kcompose auth update USER PASSWORD
-
-# To remove a user
-kcompose auth remove USER
-```
-
 ### Authorization
 ```bash
 # To list all ACL rules

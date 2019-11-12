@@ -19,8 +19,6 @@ defaultConfigFile=$HOME/.kcompose/config
 
 # Config chain
 # Defaults
-zookeeper="localhost:2181"
-zookeeperPath="/kafka"
 broker="localhost:9092"
 credentialsFile=""
 kafkaLocation="/usr/share/kcompose/kafka"
@@ -29,14 +27,10 @@ configFile=${KCOMPOSE_CONFIG_FILE:-$defaultConfigFile}
 
 # Config file
 readConfig() {
-    local KCOMPOSE_ZOOKEEPER
-    local KCOMPOSE_ZOOKEEPER_PATH
     local KCOMPOSE_BROKER
     local KCOMPOSE_CREDENTIALS_FILE
     local KCOMPOSE_KAFKA_LOCATION
     source $configFile
-    zookeeper=${KCOMPOSE_ZOOKEEPER:-$zookeeper} 
-    zookeeperPath=${KCOMPOSE_ZOOKEEPER_PATH:-$zookeeperPath} 
     broker=${KCOMPOSE_BROKER:-$broker} 
     credentialsFile=${KCOMPOSE_CREDENTIALS_FILE:-$credentialsFile} 
     kafkaLocation=${KCOMPOSE_KAFKA_LOCATION:-$kafkaLocation}
@@ -46,15 +40,12 @@ if [ -f $configFile ]; then
 fi
 
 # Environment variables
-zookeeper=${KCOMPOSE_ZOOKEEPER:-$zookeeper} 
-zookeeperPath=${KCOMPOSE_ZOOKEEPER_PATH:-$zookeeperPath} 
 broker=${KCOMPOSE_BROKER:-$broker} 
 credentialsFile=${KCOMPOSE_CREDENTIALS_FILE:-$credentialsFile} 
 kafkaLocation=${KCOMPOSE_KAFKA_LOCATION:-$kafkaLocation}
 
 
 # internal variables
-zookeeperFull="$zookeeper$zookeeperPath"
 kafkaBinaries="$kafkaLocation/bin"
 programName=`basename $0`
 
@@ -94,8 +85,6 @@ ask() {
 saveConfigs() {
     mkdir -p `dirname $configFile`
     cat > $configFile <<EOF
-KCOMPOSE_ZOOKEEPER=$zookeeper
-KCOMPOSE_ZOOKEEPER_PATH=$zookeeperPath
 KCOMPOSE_BROKER=$broker
 KCOMPOSE_CREDENTIALS_FILE=$credentialsFile
 KCOMPOSE_KAFKA_LOCATION=$kafkaLocation
@@ -170,8 +159,6 @@ EOF
 
 setup() {
     ask configFile "Configuration file" $configFile
-    ask zookeeper "Zoookeeper host:port" $zookeeper
-    ask zookeeperPath "Zoookeeper path" $zookeeperPath
     ask broker "kafka brokers" $broker
     ask kafkaLocation "Kafka Location" $kafkaLocation
     
@@ -254,7 +241,6 @@ Examples:
     }
     doc "$aclHelp" $2
     shift
-    # base="${kafkaBinaries}/kafka-acls.sh --authorizer-properties zookeeper.connect=$zookeeperFull"
     case $1 in 
     "add"|"remove")
         acl_command="--$1"
@@ -351,36 +337,17 @@ Examples:
         ${acl_operation:+--operation $acl_operation} $acl_convenience"
 
         # Execute command
-        ${kafkaBinaries}/kafka-acls.sh --authorizer-properties zookeeper.connect=$zookeeperFull $acl_command
+        ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile $acl_command
     ;;
     "list")
         shift
-        ${kafkaBinaries}/kafka-acls.sh --authorizer-properties zookeeper.connect=$zookeeperFull --list
+        ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile --list
     ;;
     *)
         invalid
     ;;
     esac
     
-;;
-"auth")
-    doc "auth [remove, create, update]" $2
-    case $2 in
-    "update"|"create")
-        user=$3
-        password=$4
-        doc "auth $2 USER PASSWORD" $user
-        doc "auth $2 USER PASSWORD" $password
-        ${kafkaBinaries}/kafka-configs.sh --zookeeper $zookeeperFull --alter --add-config "SCRAM-SHA-256=[iterations=8192,password=$password],SCRAM-SHA-512=[password=$password]" --entity-type users --entity-name $user
-    ;;
-    "remove")
-        doc "auth remove USER" $3
-        ${kafkaBinaries}/kafka-configs.sh --zookeeper $zookeeperFull --alter --entity-name $3 --entity-type users --delete-config "SCRAM-SHA-256,SCRAM-SHA-512"
-    ;;
-    *)
-        invalid
-    ;;
-    esac
 ;;
 "produce")
     doc "produce TOPIC [options]" $2
@@ -422,7 +389,6 @@ Examples:
     if [ -f $configFile ]; then
     echo "Config file location: $configFile"
     fi
-    echo "Zookeeper connection: $zookeeperFull"
     echo "Kafka connection: $broker"
     echo "Kafka location: $kafkaLocation"
     echo "Credentials file: ${credentialsFile:-None}"
