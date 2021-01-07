@@ -14,7 +14,7 @@ Download the `.deb` installer on https://github.com/andremissaglia/kcompose/rele
 
 ## Getting Started
 
-Run `kcompose config` to set up the connection variables. Try `kcompose topic list` to see if it worked.
+Run `kcompose setup` to set up the connection variables. Try `kcompose topic list` to see if it worked.
 
 
 ## Usage
@@ -92,3 +92,11 @@ kcompose acl user USER allow --add --consumer --topic TOPIC --group '*'
 # To show current kcompose variables
 kcompose env
 ```
+
+## Changelog
+
+### 0.8.0
+
+ - Updated kafka to 2.7.0
+ - Improved DevEx printing the usage when the command is wrong
+ - Reformated code with shfmt

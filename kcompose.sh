@@ -24,46 +24,43 @@ credentialsFile=""
 kafkaLocation="/usr/share/kcompose/kafka"
 configFile=${KCOMPOSE_CONFIG_FILE:-$defaultConfigFile}
 
-
 # Config file
 readConfig() {
     local KCOMPOSE_BROKER
     local KCOMPOSE_CREDENTIALS_FILE
     local KCOMPOSE_KAFKA_LOCATION
     source $configFile
-    broker=${KCOMPOSE_BROKER:-$broker} 
-    credentialsFile=${KCOMPOSE_CREDENTIALS_FILE:-$credentialsFile} 
+    broker=${KCOMPOSE_BROKER:-$broker}
+    credentialsFile=${KCOMPOSE_CREDENTIALS_FILE:-$credentialsFile}
     kafkaLocation=${KCOMPOSE_KAFKA_LOCATION:-$kafkaLocation}
 }
-if [ -f $configFile ]; then 
+if [ -f $configFile ]; then
     readConfig
 fi
 
 # Environment variables
-broker=${KCOMPOSE_BROKER:-$broker} 
-credentialsFile=${KCOMPOSE_CREDENTIALS_FILE:-$credentialsFile} 
+broker=${KCOMPOSE_BROKER:-$broker}
+credentialsFile=${KCOMPOSE_CREDENTIALS_FILE:-$credentialsFile}
 kafkaLocation=${KCOMPOSE_KAFKA_LOCATION:-$kafkaLocation}
-
 
 # internal variables
 kafkaBinaries="$kafkaLocation/bin"
-programName=`basename $0`
+programName=$(basename $0)
 
 # functions
-doc(){
-    if [ -z $2 ] 
-    then
-        echo -e "Usage: $programName $1"
-        exit
+usage() {
+    echo -e "$helpText"
+    exit
+}
+
+checkNArgs() {
+    if [ -z "$1" ]; then
+        usage
     fi
 }
 
-invalid() {
-    echo "Invalid command!"
-}
-
 escapeStar() {
-    commands=`sed 's/\*/\\\*/g' <<< """$*"""`
+    commands=$(sed 's/\*/\\\*/g' <<<"""$*""")
     eval "$commands"
 }
 ask() {
@@ -83,15 +80,15 @@ ask() {
 }
 
 saveConfigs() {
-    mkdir -p `dirname $configFile`
-    cat > $configFile <<EOF
+    mkdir -p $(dirname $configFile)
+    cat >$configFile <<EOF
 KCOMPOSE_BROKER=$broker
 KCOMPOSE_CREDENTIALS_FILE=$credentialsFile
 KCOMPOSE_KAFKA_LOCATION=$kafkaLocation
 EOF
     echo
     echo "Config files saved on $configFile"
-    if [ "$configFile" != "$defaultConfigFile" ]; then 
+    if [ "$configFile" != "$defaultConfigFile" ]; then
         echo
         echo "Warning! Config files saved on non-default location. Remember to set the environment variable:"
         echo
@@ -108,50 +105,50 @@ Authentication type must be one of:
 - SASL/PLAIN
 """
     ask authType "Authentication type" SASL/PLAIN
-    case $authType in 
+    case $authType in
     "NONE")
         credentialsFile=""
-    ;;
+        ;;
     "SASL/SCRAM256")
         ask credentialsFile "Credentials File" $HOME/.kcompose/credentials
-        mkdir -p `dirname $credentialsFile`
+        mkdir -p $(dirname $credentialsFile)
         ask username "Username" ""
         ask password "Password" ""
-        cat > $credentialsFile <<EOF
+        cat >$credentialsFile <<EOF
 sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required \
-        username="$username" \
-        password="$password";
+                                                username="$username" \
+                                                password="$password";
 security.protocol=SASL_PLAINTEXT
 sasl.mechanism=SCRAM-SHA-256
 EOF
-    echo
-    echo "Credentials saved on $credentialsFile"
+        echo
+        echo "Credentials saved on $credentialsFile"
 
-    ;;
+        ;;
     "SASL/PLAIN")
         ask credentialsFile "Credentials File" $HOME/.kcompose/credentials
-        mkdir -p `dirname $credentialsFile`
+        mkdir -p $(dirname $credentialsFile)
         ask username "Username" ""
         ask password "Password" ""
-        cat > $credentialsFile <<EOF
+        cat >$credentialsFile <<EOF
 sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
-        username="$username" \
-        password="$password";
+                                                username="$username" \
+                                                password="$password";
 security.protocol=SASL_PLAINTEXT
 sasl.mechanism=PLAIN
 EOF
-    echo
-    echo "Credentials saved on $credentialsFile"
+        echo
+        echo "Credentials saved on $credentialsFile"
 
-    ;;
+        ;;
     *)
-    echo $authType
-    echo "Must be one of:"
-    echo " - NONE"
-    echo " - SASL/SCRAM256"
-    echo " - SASL/PLAIN"
-    exit 1
-    ;;
+        echo $authType
+        echo "Must be one of:"
+        echo " - NONE"
+        echo " - SASL/SCRAM256"
+        echo " - SASL/PLAIN"
+        exit 1
+        ;;
     esac
     saveConfigs
 
@@ -161,57 +158,72 @@ setup() {
     ask configFile "Configuration file" $configFile
     ask broker "kafka brokers" $broker
     ask kafkaLocation "Kafka Location" $kafkaLocation
-    
+
     ask login "login now? (y/n)" "y"
 
     if [ "$login" = "y" ]; then
         login
-    else 
+    else
         saveConfigs
     fi
 }
 
 # commands
-doc "[topic, acl, auth, produce, consume, group, env, config, login]" $1
-case $1 in 
+helpText="Usage: $programName [topic, acl, produce, consume, group, env, config, setup, login]\n"
+helpText+="\ttopic\t\tTopic management\n"
+helpText+="\tacl\t\tACL management\n"
+helpText+="\tproduce\t\tProduce messages to a topic\n"
+helpText+="\tconsume\t\tConsume messages from a topic\n"
+helpText+="\tgroup\t\tGroup Management\n"
+helpText+="\tenv\t\tShows the current kcompose connection configs\n"
+helpText+="\tconfig\t\tDEPRECATED: Initial kcompose configuration\n"
+helpText+="\tsetup\t\tInitial kcompose configuration\n"
+helpText+="\tlogin\t\tChanges the kcompose credentials"
+checkNArgs $1
+case $1 in
 "topic")
-    doc "topic [list, describe, alter, remove, create]" $2
-    case $2 in 
+    helpText="Usage: $programName topic [list, describe, alter, remove, create]"
+    checkNArgs $2
+    case $2 in
     "list")
-    ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --list
-    ;;
+        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --list
+        ;;
     "describe")
-    doc "topic describe TOPIC" $3
-    topic=$3
-    shift 3
-    ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --describe --topic $topic $*
-    ;;
+        helpText="Usage: $programName topic describe TOPIC"
+        checkNArgs $3
+        topic=$3
+        shift 3
+        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --describe --topic $topic $*
+        ;;
     "alter")
-    doc "topic alter TOPIC" $3
-    topic=$3
-    shift 3
-    options=$*
-    ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --alter --topic $topic $options
-    ;;
+        helpText="Usage: $programName topic alter TOPIC"
+        checkNArgs $3
+        topic=$3
+        shift 3
+        options=$*
+        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --alter --topic $topic $options
+        ;;
     "remove")
-    doc "topic remove TOPIC" $3
-    ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --delete --topic $3
-    ;;
+        helpText="Usage: $programName topic remove TOPIC"
+        checkNArgs $3
+        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --delete --topic $3
+        ;;
     "create")
-    doc "topic create TOPIC [options]" $3
-    topic=$3
-    shift 3
-    options=$*
-    ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --create --topic $topic $options
-    ;;
+        helpText="Usage: $programName topic create TOPIC [options]"
+        checkNArgs $3
+        topic=$3
+        shift 3
+        options=$*
+        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --create --topic $topic $options
+        ;;
     *)
-      invalid
-    ;;
+        usage
+        ;;
     esac
-;;
-"acl") 
-    aclHelp="""Usage:
-acl [
+    ;;
+"acl")
+    helpText="""Usage:
+$programName acl [
         ([add, remove] RULE), 
         list
 ]
@@ -236,13 +248,14 @@ Examples:
 """
     error() {
         echo $1
-        echo -e "$aclHelp"
+        echo -e "$helpText"
         exit 1
     }
-    doc "$aclHelp" $2
+    helpText="$helpText"
+    checkNArgs $2
     shift
-    case $1 in 
-    "add"|"remove")
+    case $1 in
+    "add" | "remove")
         acl_command="--$1"
         acl_user=""
         acl_host=""
@@ -257,47 +270,47 @@ Examples:
         shift
         while [ $# \> 0 ]; do
             case $1 in
-            "--consumer"|"--producer")
-                acl_convenience=$1   
-            ;;
+            "--consumer" | "--producer")
+                acl_convenience=$1
+                ;;
             "--user")
                 shift
                 acl_user=$1
-            ;;
+                ;;
             "--host")
                 shift
                 acl_host="$1"
-            ;;
-            "--allow"|"--deny")
+                ;;
+            "--allow" | "--deny")
                 shift
                 acl_allow=$1
-            ;;
-            "--literal"|"--prefixed")
+                ;;
+            "--literal" | "--prefixed")
                 acl_literal=$1
-            ;;
+                ;;
             "--topic")
                 shift
                 acl_topic="$1"
-            ;;
+                ;;
             "--group")
                 shift
                 acl_group="$1"
-            ;;
+                ;;
             "--transaction")
                 shift
                 acl_transaction="$1"
-            ;;
+                ;;
             "--cluster")
                 acl_cluster="$1"
-            ;;
+                ;;
             "--operation")
                 shift
                 acl_operation=$1
-            ;;
+                ;;
             *)
                 echo "Unexpected token: $1"
                 exit 1
-            ;;
+                ;;
             esac
             shift
         done
@@ -314,7 +327,7 @@ Examples:
             error "'--producer' must specify a topic"
         fi
 
-        if [ "$acl_convenience" = "--consumer" ] && `[ -z "$acl_topic" ] || [ -z "$acl_group" ]`; then
+        if [ "$acl_convenience" = "--consumer" ] && $([ -z "$acl_topic" ] || [ -z "$acl_group" ]); then
             error "'--consumer' must specify a topic and group"
         fi
 
@@ -338,62 +351,85 @@ Examples:
 
         # Execute command
         ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile $acl_command
-    ;;
+        ;;
     "list")
         shift
         ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile --list
-    ;;
+        ;;
     *)
-        invalid
-    ;;
+        usage
+        ;;
     esac
-    
-;;
+
+    ;;
 "produce")
-    doc "produce TOPIC [options]" $2
-    topic=$2
-    shift 2
-    options=$*
-    ${kafkaBinaries}/kafka-console-producer.sh --broker-list $broker --topic $topic --producer.config $credentialsFile $options
-;;
+    helpText="Usage: $programName produce TOPIC [options]"
+    checkNArgs $2
+    case $2 in
+    "-h" | "--help")
+        ${kafkaBinaries}/kafka-console-producer.sh -h
+        ;;
+    *)
+        topic=$2
+        shift 2
+        options=$*
+        ${kafkaBinaries}/kafka-console-producer.sh --broker-list $broker --topic $topic --producer.config $credentialsFile $options
+        ;;
+    esac
+    ;;
 "consume")
-    doc "consume TOPIC [options]" $2
-    topic=$2
-    shift 2
-    options=$*
-    ${kafkaBinaries}/kafka-console-consumer.sh --bootstrap-server $broker --topic $topic --consumer.config $credentialsFile $options
-;;
+    helpText="Usage: $programName consume TOPIC [options]"
+    checkNArgs $2
+    case $2 in
+    "-h" | "--help")
+        ${kafkaBinaries}/kafka-console-consumer.sh -h
+        ;;
+    *)
+        topic=$2
+        shift 2
+        options=$*
+        ${kafkaBinaries}/kafka-console-consumer.sh --bootstrap-server $broker --topic $topic --consumer.config $credentialsFile $options
+        ;;
+    esac
+    ;;
 "group")
-    doc "group [list, describe, remove]" $2
+    helpText="Usage: $programName group [list, describe, remove]"
+    checkNArgs $2
     case $2 in
     "list")
-        ${kafkaBinaries}/kafka-consumer-groups.sh  --bootstrap-server $broker --command-config $credentialsFile --list
-    ;;
+        ${kafkaBinaries}/kafka-consumer-groups.sh --bootstrap-server $broker --command-config $credentialsFile --list
+        ;;
     "describe")
-        doc "group describe GROUP" $3
-        ${kafkaBinaries}/kafka-consumer-groups.sh  --bootstrap-server $broker --command-config $credentialsFile --describe --group $3
-    ;;
+        helpText="Usage: $programName group describe GROUP"
+        checkNArgs $3
+        ${kafkaBinaries}/kafka-consumer-groups.sh --bootstrap-server $broker --command-config $credentialsFile --describe --group $3
+        ;;
     "remove")
-        doc "group remove GROUP" $3
-        ${kafkaBinaries}/kafka-consumer-groups.sh  --bootstrap-server $broker --command-config $credentialsFile --delete --group $3
-    ;;
+        helpText="Usage: $programName group remove GROUP"
+        checkNArgs $3
+        ${kafkaBinaries}/kafka-consumer-groups.sh --bootstrap-server $broker --command-config $credentialsFile --delete --group $3
+        ;;
     "reset")
-        doc "group reset GROUP [options]" $3
+        helpText="Usage: $programName group reset GROUP [options]"
+        checkNArgs $3
         group=$3
         shift 2
-        ${kafkaBinaries}/kafka-consumer-groups.sh  --bootstrap-server $broker --command-config $credentialsFile --reset-offsets --group $group $*
-    ;;
+        ${kafkaBinaries}/kafka-consumer-groups.sh --bootstrap-server $broker --command-config $credentialsFile --reset-offsets --group $group $*
+        ;;
+    *)
+        usage
+        ;;
     esac
-;;
+    ;;
 "env")
     if [ -f $configFile ]; then
-    echo "Config file location: $configFile"
+        echo "Config file location: $configFile"
     fi
     echo "Kafka connection: $broker"
     echo "Kafka location: $kafkaLocation"
     echo "Credentials file: ${credentialsFile:-None}"
 
-    if [ "$2" =  "credentials" ]; then
+    if [ "$2" = "credentials" ]; then
         echo
         cat $credentialsFile
     else
@@ -401,16 +437,20 @@ Examples:
             echo
             echo "Use \"$programName env credentials\" to show credentials info"
         fi
-    fi 
-    
-;;
+    fi
+
+    ;;
 "config")
+    echo -e "DEPRECATED: Use '$programName setup' instead\n"
     setup
-;;
+    ;;
+"setup")
+    setup
+    ;;
 "login")
     login
-;;
+    ;;
 *)
-    invalid
-;;
+    usage
+    ;;
 esac
