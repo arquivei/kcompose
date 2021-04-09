@@ -196,12 +196,12 @@ case $1 in
         ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --describe --topic $topic $*
         ;;
     "alter")
-        helpText="Usage: $programName topic alter TOPIC"
+        helpText="Usage: $programName topic alter TOPIC [options]"
         checkNArgs $3
         topic=$3
         shift 3
         options=$*
-        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --alter --topic $topic $options
+        ${kafkaBinaries}/kafka-configs.sh --bootstrap-server $broker --command-config $credentialsFile --alter --topic $topic $options
         ;;
     "remove")
         helpText="Usage: $programName topic remove TOPIC"
