@@ -95,6 +95,10 @@ kcompose env
 
 ## Changelog
 
+### 0.8.1
+
+ - \[Bug\] Fix problem in `kcompose topic alter`: 
+
 ### 0.8.0
 
  - Updated kafka to 2.7.0
