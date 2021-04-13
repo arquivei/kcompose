@@ -95,9 +95,16 @@ kcompose env
 
 ## Changelog
 
+### 0.8.2
+
+ - \[Feature\] Add new command `kcompose topic acl list`
+ - \[Feature\] Add new command `kcompose group acl list`
+ - \[Feature\] Add new command `kcompose user acl list`
+ - \[Feature\] Alter command from `kcompose acl list` to `kcompose acl list [options]`
+
 ### 0.8.1
 
- - \[Bug\] Fix problem in `kcompose topic alter`: 
+ - \[Bug\] Fix problem in `kcompose topic alter`
 
 ### 0.8.0
 
