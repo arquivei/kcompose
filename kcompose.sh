@@ -169,7 +169,7 @@ setup() {
 }
 
 # commands
-helpText="Usage: $programName [topic, acl, produce, consume, group, env, config, setup, login]\n"
+helpText="Usage: $programName [topic, acl, produce, consume, group, env, config, setup, login, user]\n"
 helpText+="\ttopic\t\tTopic management\n"
 helpText+="\tacl\t\tACL management\n"
 helpText+="\tproduce\t\tProduce messages to a topic\n"
@@ -178,11 +178,12 @@ helpText+="\tgroup\t\tGroup Management\n"
 helpText+="\tenv\t\tShows the current kcompose connection configs\n"
 helpText+="\tconfig\t\tDEPRECATED: Initial kcompose configuration\n"
 helpText+="\tsetup\t\tInitial kcompose configuration\n"
-helpText+="\tlogin\t\tChanges the kcompose credentials"
+helpText+="\tlogin\t\tChanges the kcompose credentials\n"
+helpText+="\tuser\t\tUser Management"
 checkNArgs $1
 case $1 in
 "topic")
-    helpText="Usage: $programName topic [list, describe, alter, remove, create]"
+    helpText="Usage: $programName topic [list, describe, alter, remove, create, acl]"
     checkNArgs $2
     case $2 in
     "list")
@@ -215,6 +216,23 @@ case $1 in
         shift 3
         options=$*
         ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --create --topic $topic $options
+        ;;
+    "acl")
+        helpText="Usage: $programName topic acl [list]"
+        checkNArgs $3
+        case $3 in
+        "list")
+            helpText="Usage: $programName topic acl TOPIC [options]"
+            checkNArgs $4
+            topic=$4
+            shift 4
+            options=$*
+            ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile --list --topic $topic --resource-pattern-type MATCH $options
+            ;;
+        *)
+            usage
+            ;;
+        esac
         ;;
     *)
         usage
@@ -354,7 +372,8 @@ Examples:
         ;;
     "list")
         shift
-        ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile --list
+        options=$*
+        ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile --list $options
         ;;
     *)
         usage
@@ -393,7 +412,7 @@ Examples:
     esac
     ;;
 "group")
-    helpText="Usage: $programName group [list, describe, remove]"
+    helpText="Usage: $programName group [list, describe, remove, acl]"
     checkNArgs $2
     case $2 in
     "list")
@@ -415,6 +434,23 @@ Examples:
         group=$3
         shift 2
         ${kafkaBinaries}/kafka-consumer-groups.sh --bootstrap-server $broker --command-config $credentialsFile --reset-offsets --group $group $*
+        ;;
+    "acl")
+        helpText="Usage: $programName group acl [list]"
+        checkNArgs $3
+        case $3 in
+        "list")
+            helpText="Usage: $programName group acl GROUP [options]"
+            checkNArgs $4
+            group=$4
+            shift 4
+            options=$*
+            ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile --list --group $group --resource-pattern-type MATCH $options
+            ;;
+        *)
+            usage
+            ;;
+        esac
         ;;
     *)
         usage
@@ -449,6 +485,31 @@ Examples:
     ;;
 "login")
     login
+    ;;
+"user")
+    helpText="Usage: $programName user [acl]"
+    checkNArgs $2
+    case $2 in
+    "acl")
+        helpText="Usage: $programName user acl [list]"
+        checkNArgs $3
+        case $3 in
+        "list")
+            helpText="Usage: $programName user acl list USER [options]"
+            checkNArgs $4
+            user=$4
+            shift 2
+            ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile --list --principal User:$user $*
+            ;;
+        *)
+            usage
+            ;;
+        esac
+        ;;
+    *)
+        usage
+        ;;
+    esac
     ;;
 *)
     usage
