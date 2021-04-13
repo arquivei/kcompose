@@ -95,7 +95,7 @@ kcompose env
 
 ## Changelog
 
-### 0.8.2
+### 0.9.0
 
  - \[Feature\] Add new command `kcompose topic acl list`
  - \[Feature\] Add new command `kcompose group acl list`
