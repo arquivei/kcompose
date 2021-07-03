@@ -48,10 +48,12 @@ kafkaBinaries="$kafkaLocation/bin"
 programName=$(basename $0)
 commandConfig=""
 producerConfig=""
+consumerConfig=""
 
 if [ ! -z "$credentialsFile" ]; then
     commandConfig="--command-config $credentialsFile"
     producerConfig="--producer.config $credentialsFile"
+    consumerConfig="--consumer.config $credentialsFile"
 fi
 
 # functions
@@ -414,7 +416,7 @@ Examples:
         topic=$2
         shift 2
         options=$*
-        ${kafkaBinaries}/kafka-console-consumer.sh --bootstrap-server $broker --topic $topic --consumer.config $credentialsFile $options
+        ${kafkaBinaries}/kafka-console-consumer.sh --bootstrap-server $broker --topic $topic $consumerConfig $options
         ;;
     esac
     ;;

@@ -95,6 +95,10 @@ kcompose env
 
 ## Changelog
 
+### 0.9.2
+
+ - \[Bug\] Fix --consumer.config when authentication method is set to NONE
+
 ### 0.9.1
 
  - \[Bug\] Fix --command-config when authentication method is set to NONE
