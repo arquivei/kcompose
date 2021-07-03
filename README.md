@@ -95,6 +95,14 @@ kcompose env
 
 ## Changelog
 
+### 0.9.1
+
+ - \[Bug\] Fix --command-config when authentication method is set to NONE
+
+### 0.9.0
+
+ - Add additional ACL listing commands
+
 ### 0.8.1
 
  - \[Bug\] Fix problem in `kcompose topic alter`: 

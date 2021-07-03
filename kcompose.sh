@@ -46,6 +46,13 @@ kafkaLocation=${KCOMPOSE_KAFKA_LOCATION:-$kafkaLocation}
 # internal variables
 kafkaBinaries="$kafkaLocation/bin"
 programName=$(basename $0)
+commandConfig=""
+producerConfig=""
+
+if [ ! -z "$credentialsFile" ]; then
+    commandConfig="--command-config $credentialsFile"
+    producerConfig="--producer.config $credentialsFile"
+fi
 
 # functions
 usage() {
@@ -187,14 +194,14 @@ case $1 in
     checkNArgs $2
     case $2 in
     "list")
-        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --list
+        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker $commandConfig --list
         ;;
     "describe")
         helpText="Usage: $programName topic describe TOPIC"
         checkNArgs $3
         topic=$3
         shift 3
-        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --describe --topic $topic $*
+        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker $commandConfig --describe --topic $topic $*
         ;;
     "alter")
         helpText="Usage: $programName topic alter TOPIC [options]"
@@ -202,12 +209,12 @@ case $1 in
         topic=$3
         shift 3
         options=$*
-        ${kafkaBinaries}/kafka-configs.sh --bootstrap-server $broker --command-config $credentialsFile --alter --topic $topic $options
+        ${kafkaBinaries}/kafka-configs.sh --bootstrap-server $broker $commandConfig --alter --topic $topic $options
         ;;
     "remove")
         helpText="Usage: $programName topic remove TOPIC"
         checkNArgs $3
-        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --delete --topic $3
+        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker $commandConfig --delete --topic $3
         ;;
     "create")
         helpText="Usage: $programName topic create TOPIC [options]"
@@ -215,7 +222,7 @@ case $1 in
         topic=$3
         shift 3
         options=$*
-        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker --command-config $credentialsFile --create --topic $topic $options
+        ${kafkaBinaries}/kafka-topics.sh --bootstrap-server $broker $commandConfig --create --topic $topic $options
         ;;
     "acl")
         helpText="Usage: $programName topic acl [list]"
@@ -227,7 +234,7 @@ case $1 in
             topic=$4
             shift 4
             options=$*
-            ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile --list --topic $topic --resource-pattern-type MATCH $options
+            ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker $commandConfig --list --topic $topic --resource-pattern-type MATCH $options
             ;;
         *)
             usage
@@ -368,12 +375,12 @@ Examples:
         ${acl_operation:+--operation $acl_operation} $acl_convenience"
 
         # Execute command
-        ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile $acl_command
+        ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker $commandConfig $acl_command
         ;;
     "list")
         shift
         options=$*
-        ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile --list $options
+        ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker $commandConfig --list $options
         ;;
     *)
         usage
@@ -392,7 +399,7 @@ Examples:
         topic=$2
         shift 2
         options=$*
-        ${kafkaBinaries}/kafka-console-producer.sh --broker-list $broker --topic $topic --producer.config $credentialsFile $options
+        ${kafkaBinaries}/kafka-console-producer.sh --broker-list $broker --topic $topic $producerConfig $options
         ;;
     esac
     ;;
@@ -416,24 +423,24 @@ Examples:
     checkNArgs $2
     case $2 in
     "list")
-        ${kafkaBinaries}/kafka-consumer-groups.sh --bootstrap-server $broker --command-config $credentialsFile --list
+        ${kafkaBinaries}/kafka-consumer-groups.sh --bootstrap-server $broker $commandConfig --list
         ;;
     "describe")
         helpText="Usage: $programName group describe GROUP"
         checkNArgs $3
-        ${kafkaBinaries}/kafka-consumer-groups.sh --bootstrap-server $broker --command-config $credentialsFile --describe --group $3
+        ${kafkaBinaries}/kafka-consumer-groups.sh --bootstrap-server $broker $commandConfig --describe --group $3
         ;;
     "remove")
         helpText="Usage: $programName group remove GROUP"
         checkNArgs $3
-        ${kafkaBinaries}/kafka-consumer-groups.sh --bootstrap-server $broker --command-config $credentialsFile --delete --group $3
+        ${kafkaBinaries}/kafka-consumer-groups.sh --bootstrap-server $broker $commandConfig --delete --group $3
         ;;
     "reset")
         helpText="Usage: $programName group reset GROUP [options]"
         checkNArgs $3
         group=$3
         shift 2
-        ${kafkaBinaries}/kafka-consumer-groups.sh --bootstrap-server $broker --command-config $credentialsFile --reset-offsets --group $group $*
+        ${kafkaBinaries}/kafka-consumer-groups.sh --bootstrap-server $broker $commandConfig --reset-offsets --group $group $*
         ;;
     "acl")
         helpText="Usage: $programName group acl [list]"
@@ -445,7 +452,7 @@ Examples:
             group=$4
             shift 4
             options=$*
-            ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile --list --group $group --resource-pattern-type MATCH $options
+            ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker $commandConfig --list --group $group --resource-pattern-type MATCH $options
             ;;
         *)
             usage
@@ -465,7 +472,7 @@ Examples:
     echo "Kafka location: $kafkaLocation"
     echo "Credentials file: ${credentialsFile:-None}"
 
-    if [ "$2" = "credentials" ]; then
+    if [ "$2" = "credentials" ] && [ ! -z "$credentialsFile" ]; then
         echo
         cat $credentialsFile
     else
@@ -499,7 +506,7 @@ Examples:
             checkNArgs $4
             user=$4
             shift 2
-            ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker --command-config $credentialsFile --list --principal User:$user $*
+            ${kafkaBinaries}/kafka-acls.sh --bootstrap-server $broker $commandConfig --list --principal User:$user $*
             ;;
         *)
             usage
