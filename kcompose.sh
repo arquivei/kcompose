@@ -15,14 +15,21 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 set -f # Disables Globbing
-defaultConfigFile=$HOME/.kcompose/config
+configPath=$HOME/.kcompose/
+
+defaultConfigPath=${configPath}default/
+defaultConfigFile=${defaultConfigPath}config
+
+defaultCredentialsPath=$HOME/.kcompose/default/
+defaultCredentialsFile=${defaultCredentialsPath}credentials
 
 # Config chain
 # Defaults
 broker="localhost:9092"
-credentialsFile=""
 kafkaLocation="/usr/share/kcompose/kafka"
+credentialsFile=""
 configFile=${KCOMPOSE_CONFIG_FILE:-$defaultConfigFile}
+contextCurrent="default"
 
 # Config file
 readConfig() {
@@ -119,7 +126,7 @@ Authentication type must be one of:
         credentialsFile=""
         ;;
     "SASL/SCRAM256")
-        ask credentialsFile "Credentials File" $HOME/.kcompose/credentials
+        ask credentialsFile "Credentials File" $defaultCredentialsFile
         mkdir -p $(dirname $credentialsFile)
         ask username "Username" ""
         ask password "Password" ""
@@ -135,7 +142,7 @@ EOF
 
         ;;
     "SASL/PLAIN")
-        ask credentialsFile "Credentials File" $HOME/.kcompose/credentials
+        ask credentialsFile "Credentials File" $defaultCredentialsFile
         mkdir -p $(dirname $credentialsFile)
         ask username "Username" ""
         ask password "Password" ""
@@ -164,7 +171,22 @@ EOF
 }
 
 setup() {
-    ask configFile "Configuration file" $configFile
+    # TODO: helptext + usage
+    
+    # TODO: separate configPath from configFile
+    if [ -z "$1" ]; then
+        ask configFile "Configuration file" $configFile
+    fi
+    if [ -f $configFile ]; then
+        ask overwrite "Overwrite config file?" "n"
+        if [ "$overwrite" != "y" ]; then
+            exit
+        fi
+    fi
+    
+    configFile=$1
+    validate_filename $configFile
+
     ask broker "kafka brokers" $broker
     ask kafkaLocation "Kafka Location" $kafkaLocation
 
@@ -174,6 +196,81 @@ setup() {
         login
     else
         saveConfigs
+    fi
+}
+
+# context is a function that manages the context of the config and credentials files
+context() {
+    helpText="Usage: $programName context [new, set, import, list, delete] [contextName]\n"
+    helpText+="\tnew\t\tCreate a new context\n"
+    helpText+="\tset\t\tSet the current context\n"
+    helpText+="\tlist\t\tList all contexts\n"
+    helpText+="\tdelete\t\tDelete a context\n"
+    helpText+="\tcontextName\tName of the context\n"
+
+    checkNArgs $1
+    case $1 in
+    "new")
+        checkNArgs $2
+        context_new $2
+        ;;
+    *)
+        usage
+        ;;
+    esac
+}
+
+# context_new creates a new context
+context_new() {
+    checkNArgs $1
+    contextName=$1
+    validate_filename $contextName
+
+    # TODO: create a new context
+
+    configFile=$HOME/.kcompose/$contextName/config
+    credentialsFile=$HOME/.kcompose/$contextName/credentials
+}
+
+# validate_filename checks if the filename is valid
+validate_filename() {
+    __filename=$1
+    val=$(echo "${#__filename}")
+
+    if [[ $__filename == "default" ]]; then
+        echo "Context name cannot be 'default'"
+        exit
+    fi
+
+    if [[ $__filename == "" ]]; then
+        echo "Filename: $__filename cannot be empty"
+        exit
+    fi
+
+    if [[ $__filename == "." ]] || [[ $__filename == ".." ]]; then
+        # "." and ".." are added automatically and always exist, so you can't have a
+        # file named . or .. // https://askubuntu.com/a/416508/660555
+        echo "Filename: $__filename is not valid"
+        exit
+    fi
+
+    if [ $val -gt 255 ]; then
+        # String's length check
+        echo "Filename: $__filename has more than 255 characters"
+        exit
+    fi
+
+    if ! [[ $__filename =~ ^[0-9a-zA-Z._-]+$ ]]; then
+        # Checks whether valid characters exist
+        echo "Filename: $__filename has invalid characters"
+        exit
+    fi
+
+    ___filename=$(echo $__filename | cut -c1-1)
+    if ! [[ $___filename =~ ^[0-9a-zA-Z.]+$ ]]; then
+        # Checks the first character
+        echo "Filename: $__filename has invalid first character"
+        exit
     fi
 }
 
