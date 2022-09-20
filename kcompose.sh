@@ -20,7 +20,7 @@ configPath=$HOME/.kcompose/
 defaultConfigPath=${configPath}default/
 defaultConfigFile=${defaultConfigPath}config
 
-defaultCredentialsPath=$HOME/.kcompose/default/
+defaultCredentialsPath=${configPath}default/
 defaultCredentialsFile=${defaultCredentialsPath}credentials
 
 # Config chain
@@ -126,7 +126,7 @@ Authentication type must be one of:
         credentialsFile=""
         ;;
     "SASL/SCRAM256")
-        ask credentialsFile "Credentials File" $defaultCredentialsFile
+        credentialsFile=${configPath}$config/credentials
         mkdir -p $(dirname $credentialsFile)
         ask username "Username" ""
         ask password "Password" ""
@@ -142,7 +142,8 @@ EOF
 
         ;;
     "SASL/PLAIN")
-        ask credentialsFile "Credentials File" $defaultCredentialsFile
+        # ask credentialsFile "Credentials File" $defaultCredentialsFile
+        credentialsFile=${configPath}$config/credentials
         mkdir -p $(dirname $credentialsFile)
         ask username "Username" ""
         ask password "Password" ""
@@ -171,26 +172,25 @@ EOF
 }
 
 setup() {
-    # TODO: helptext + usage
-    
-    # TODO: separate configPath from configFile
     if [ -z "$1" ]; then
-        ask configFile "Configuration file" $configFile
+        ask config "Configuration name" "default"
+    else
+        config=$1
+        validate_name $config
     fi
+        configFile=${configPath}$config/config
+
     if [ -f $configFile ]; then
-        ask overwrite "Overwrite config file?" "n"
+        ask overwrite "Configuration \"$config\" already exist, do you want overwrite it? [y/N]" "n"
         if [ "$overwrite" != "y" ]; then
             exit
         fi
     fi
-    
-    configFile=$1
-    validate_filename $configFile
 
-    ask broker "kafka brokers" $broker
+    ask broker "Kafka brokers" $broker
     ask kafkaLocation "Kafka Location" $kafkaLocation
 
-    ask login "login now? (y/n)" "y"
+    ask login "Login now? (y/n)" "y"
 
     if [ "$login" = "y" ]; then
         login
@@ -222,54 +222,47 @@ context() {
 
 # context_new creates a new context
 context_new() {
-    checkNArgs $1
-    contextName=$1
-    validate_filename $contextName
-
-    # TODO: create a new context
-
-    configFile=$HOME/.kcompose/$contextName/config
-    credentialsFile=$HOME/.kcompose/$contextName/credentials
+    setup $1
 }
 
-# validate_filename checks if the filename is valid
-validate_filename() {
-    __filename=$1
-    val=$(echo "${#__filename}")
+# validate_name checks if the filename is valid
+validate_name() {
+    __name=$1
+    val=$(echo "${#__name}")
 
-    if [[ $__filename == "default" ]]; then
+    if [[ $__name == "default" ]]; then
         echo "Context name cannot be 'default'"
         exit
     fi
 
-    if [[ $__filename == "" ]]; then
-        echo "Filename: $__filename cannot be empty"
+    if [[ $__name == "" ]]; then
+        echo "Filename: $__name cannot be empty"
         exit
     fi
 
-    if [[ $__filename == "." ]] || [[ $__filename == ".." ]]; then
+    if [[ $__name == "." ]] || [[ $__name == ".." ]]; then
         # "." and ".." are added automatically and always exist, so you can't have a
         # file named . or .. // https://askubuntu.com/a/416508/660555
-        echo "Filename: $__filename is not valid"
+        echo "Filename: $__name is not valid"
         exit
     fi
 
     if [ $val -gt 255 ]; then
         # String's length check
-        echo "Filename: $__filename has more than 255 characters"
+        echo "Filename: $__name has more than 255 characters"
         exit
     fi
 
-    if ! [[ $__filename =~ ^[0-9a-zA-Z._-]+$ ]]; then
+    if ! [[ $__name =~ ^[0-9a-zA-Z._-]+$ ]]; then
         # Checks whether valid characters exist
-        echo "Filename: $__filename has invalid characters"
+        echo "Filename: $__name has invalid characters"
         exit
     fi
 
-    ___filename=$(echo $__filename | cut -c1-1)
-    if ! [[ $___filename =~ ^[0-9a-zA-Z.]+$ ]]; then
+    ___name=$(echo $__name | cut -c1-1)
+    if ! [[ $___name =~ ^[0-9a-zA-Z.]+$ ]]; then
         # Checks the first character
-        echo "Filename: $__filename has invalid first character"
+        echo "Filename: $__name has invalid first character"
         exit
     fi
 }
