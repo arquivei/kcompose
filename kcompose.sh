@@ -23,13 +23,27 @@ defaultConfigFile=${defaultConfigPath}config
 defaultCredentialsPath=${configPath}default/
 defaultCredentialsFile=${defaultCredentialsPath}credentials
 
+if [ ! -f ${configPath}context ]; then
+    touch ${configPath}context
+fi
+
+source ${configPath}context
+currentContext=${KCOMPOSE_CONTEXT:-"default"}
+
+if [ -z "$KCOMPOSE_CONFIG_FILE" ]; then
+    if [ ! -d "${configPath}${currentContext}" ]; then
+        echo -e "WARNING: Context ${currentContext} not found\n\n"
+        echo -e "Please, set a valid context using the command:"
+        echo -e "kcompose context set <context>\n"
+    fi
+fi
+
 # Config chain
 # Defaults
 broker="localhost:9092"
 kafkaLocation="/usr/share/kcompose/kafka"
 credentialsFile=""
 configFile=${KCOMPOSE_CONFIG_FILE:-$defaultConfigFile}
-contextCurrent="default"
 
 # Config file
 readConfig() {
@@ -95,6 +109,12 @@ ask() {
     eval "$result=\"$answer\""
 }
 
+saveContext() {
+    if [ -f ${configPath}context ]; then
+        echo "KCOMPOSE_CONTEXT=$1" > ${configPath}context
+    fi
+}
+
 saveConfigs() {
     mkdir -p $(dirname $configFile)
     cat >$configFile <<EOF
@@ -104,13 +124,7 @@ KCOMPOSE_KAFKA_LOCATION=$kafkaLocation
 EOF
     echo
     echo "Config files saved on $configFile"
-    if [ "$configFile" != "$defaultConfigFile" ]; then
-        echo
-        echo "Warning! Config files saved on non-default location. Remember to set the environment variable:"
-        echo
-        echo "export KCOMPOSE_CONFIG_FILE=$configFile"
-
-    fi
+    echo
 }
 
 login() {
@@ -126,7 +140,11 @@ Authentication type must be one of:
         credentialsFile=""
         ;;
     "SASL/SCRAM256")
-        credentialsFile=${configPath}$config/credentials
+        if [ -z "$KCOMPOSE_CONFIG_FILE" ]; then
+            credentialsFile=${configPath}$currentContext/credentials
+        else
+            credentialsFile=${configPath}credentials
+        fi
         mkdir -p $(dirname $credentialsFile)
         ask username "Username" ""
         ask password "Password" ""
@@ -142,8 +160,11 @@ EOF
 
         ;;
     "SASL/PLAIN")
-        # ask credentialsFile "Credentials File" $defaultCredentialsFile
-        credentialsFile=${configPath}$config/credentials
+        if [ -z "$KCOMPOSE_CONFIG_FILE" ]; then
+            credentialsFile=${configPath}$currentContext/credentials
+        else
+            credentialsFile=${configPath}credentials
+        fi
         mkdir -p $(dirname $credentialsFile)
         ask username "Username" ""
         ask password "Password" ""
@@ -173,19 +194,22 @@ EOF
 
 setup() {
     if [ -z "$1" ]; then
-        ask config "Configuration name" "default"
+        ask setupConfig "Configuration name" "default"
     else
-        config=$1
-        validate_name $config
+        setupConfig=$1
+        validate_name $setupConfig
     fi
-        configFile=${configPath}$config/config
+        configFile=${configPath}$setupConfig/config
 
     if [ -f $configFile ]; then
-        ask overwrite "Configuration \"$config\" already exist, do you want overwrite it? [y/N]" "n"
+        ask overwrite "Configuration \"$setupConfig\" already exist, do you want overwrite it? [y/N]" "n"
         if [ "$overwrite" != "y" ]; then
             exit
         fi
     fi
+
+    currentContext=$setupConfig
+    saveContext $currentContext
 
     ask broker "Kafka brokers" $broker
     ask kafkaLocation "Kafka Location" $kafkaLocation
@@ -201,18 +225,39 @@ setup() {
 
 # context is a function that manages the context of the config and credentials files
 context() {
-    helpText="Usage: $programName context [new, set, import, list, delete] [contextName]\n"
+
+    if [ ! -z "$KCOMPOSE_CONFIG_FILE" ]; then
+        echo "Contexts are only available when KCOMPOSE_CONFIG_FILE is not set"
+        exit 1
+    fi
+
+    helpText="Usage: $programName context [new, set, list, delete, show] [contextName]\n"
     helpText+="\tnew\t\tCreate a new context\n"
     helpText+="\tset\t\tSet the current context\n"
     helpText+="\tlist\t\tList all contexts\n"
     helpText+="\tdelete\t\tDelete a context\n"
+    helpText+="\tshow\t\tShow the current context\n"
     helpText+="\tcontextName\tName of the context\n"
 
-    checkNArgs $1
+    # checkNArgs $1
     case $1 in
     "new")
         checkNArgs $2
         context_new $2
+        ;;
+    "set")
+        checkNArgs $2
+        context_set $2
+        ;;
+    "list")
+        context_list
+        ;;
+    "delete")
+        checkNArgs $2
+        context_delete $2
+        ;;
+    "show")
+        context_show
         ;;
     *)
         usage
@@ -222,7 +267,77 @@ context() {
 
 # context_new creates a new context
 context_new() {
+    helpText="Usage: $programName context new [contextName]\n"
+    checkNArgs $1
+
     setup $1
+    echo "Context \"$1\" was created"
+}
+
+# context_set sets the current context
+context_set() {
+    helpText="Usage: $programName context set [contextName]\n"
+    checkNArgs $1
+
+    if [ ! -f ${configPath}$1/config ]; then
+        echo "Context \"$1\" does not exist"
+        exit 1
+    fi
+    configFile=${configPath}$1/config
+    currentContext=$1
+    readConfig
+    echo "Context set to \"$1\""
+    saveContext $currentContext
+}
+
+# context_list lists all contexts
+context_list() {
+    current=""
+    echo "Contexts:"
+    for context in $(ls $configPath); do
+        if [ -f ${configPath}$context/config ]; then
+            if [ "$context" = "$currentContext" ]; then
+                current="*"
+            else
+                current=""
+            fi
+            echo -e "\t$context$current"
+        fi
+    done
+}
+
+# context_delete deletes a context
+context_delete() {
+    helpText="Usage: $programName context delete [contextName]\n"
+    checkNArgs $1
+
+    if [ ! -f ${configPath}$1/config ]; then
+        echo "Context \"$1\" does not exist"
+        exit 1
+    fi
+    rm -rf ${configPath}$1 && echo "Context \"$1\" was deleted"
+    currentContext="default"
+    saveContext $currentContext
+    echo -e "Current context is \"$currentContext\"\n"
+    echo "If you want to change it, use the command:"
+    echo "$programName context set [contextName]"
+}
+
+# context_show shows the current context
+context_show() {
+    if [ ! -d "${configPath}${currentContext}" ]; then
+        echo "Context \"$currentContext\" does not exist"
+        echo "Please, set a valid context"
+        echo "Use the command:"
+        echo "$programName context set [contextName]"
+        exit 1
+    fi
+    echo -e "Current context: $currentContext\n"
+    echo -e - "Config file: $configFile\n"
+    cat $configFile
+    echo ""
+    echo -e - "Credentials file: $credentialsFile\n"
+    cat $credentialsFile
 }
 
 # validate_name checks if the filename is valid
@@ -609,6 +724,9 @@ Examples:
         usage
         ;;
     esac
+    ;;
+"context")
+    context $2 $3
     ;;
 *)
     usage
