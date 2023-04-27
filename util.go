@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 
@@ -14,11 +13,6 @@ func Dispatcher(commands []string) cli.ActionFunc {
 		command.Stdout = os.Stdout
 		command.Stdin = os.Stdin
 		command.Stderr = os.Stderr
-		if err := command.Run(); err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
-		os.Exit(0)
-		return nil
+		return command.Run()
 	}
 }

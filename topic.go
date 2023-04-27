@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/urfave/cli/v2"
 )
 
@@ -22,7 +24,6 @@ func topicListSubcommand() *cli.Command {
 	return &cli.Command{
 		Name:   "list",
 		Usage:  "list",
-		Action: Dispatcher([]string{"echo", "topic list executed"}),
-		// Action: Dispatcher([]string{"não deu certo"}),
+		Action: Dispatcher(strings.Split("kcompose topic create input --replication-factor 1 --partitions 3", " ")),
 	}
 }
